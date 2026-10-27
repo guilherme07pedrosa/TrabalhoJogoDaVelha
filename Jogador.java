@@ -2,7 +2,8 @@
 // 1. RMI: pede um oponente ao Servidor de Match (getOponent).
 // 2. TCP: joga UMA partida trocando mensagens JSON com o oponente.
 // 3. Multicast: publica cada jogada feita para os Displays.
-// Uso: java Jogador <ipRegistry> <portaRegistry> <meuIP> <minhaPorta> [humano|auto]
+// Uso: java Jogador <ipRegistry> <portaRegistry> <meuIP> <minhaPorta> [humano|auto] [grupoMulticast] [portaMulticast]
+//      (sem grupo e porta, usa 225.1.1.12 e 8812)
  
 // Convencoes do jogo:
 // - Tabuleiro: 0 = vazia, 1 = X (quem inicia), 2 = O (outro jogador).
@@ -28,8 +29,9 @@ import java.util.Arrays;
 
 public class Jogador {
 
-    static final String GRUPO = "225.1.1.4";             // 225.1.1.NN
-    static final int    PORTA_MC = 8804;                 // 88NN
+    // grupo e porta do multicast: padrao 225.1.1.NN e 88NN, podem ser trocados pelos argumentos
+    static String grupoMc = "225.1.1.12";
+    static int    portaMc = 8812;
 
     static final int TIMEOUT_JOGADA_MS = 5 * 60 * 1000;  // espera maxima pela jogada do oponente
     static final int TIMEOUT_ACEITE_MS = 30 * 1000;      // espera pelo aceite do resultado final
@@ -69,7 +71,7 @@ public class Jogador {
         System.setProperty("java.net.preferIPv4Stack", "true");
 
         if (args.length < 4) {
-            System.err.println("Uso: java Jogador <ipRegistry> <portaRegistry> <meuIP> <minhaPorta> [humano|auto]");
+            System.err.println("Uso: java Jogador <ipRegistry> <portaRegistry> <meuIP> <minhaPorta> [humano|auto] [grupoMulticast] [portaMulticast]");
             return;
         }
         String ipReg = args[0];
@@ -77,6 +79,8 @@ public class Jogador {
         String meuIp = args[2];
         int minhaPorta = Integer.parseInt(args[3]);
         boolean automatico = args.length > 4 && args[4].equalsIgnoreCase("auto");
+        if (args.length > 5) grupoMc = args[5];
+        if (args.length > 6) portaMc = Integer.parseInt(args[6]);
 
         // Abre a escuta ANTES do match: o oponente pode conectar logo em seguida.
         try (ServerSocket escuta = new ServerSocket(minhaPorta)) {
@@ -238,7 +242,7 @@ public class Jogador {
         }
     }
 
-    // confere a jogada recebida, devolve null se estiver correta ou o motivo do erro se não
+    // confere a jogada recebida, devolve null se estiver correta ou o motivo do erro se nao
     private String validar(String m, int numero) {
         int casa;
         int[] t;
@@ -310,7 +314,7 @@ public class Jogador {
         if (mc == null) return;
         try {
             byte[] dados = json.getBytes();
-            mc.send(new DatagramPacket(dados, dados.length, InetAddress.getByName(GRUPO), PORTA_MC));
+            mc.send(new DatagramPacket(dados, dados.length, InetAddress.getByName(grupoMc), portaMc));
         } catch (IOException e) {
             System.out.println("[aviso] falha ao publicar no Display: " + e.getMessage());
         }
