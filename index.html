@@ -134,7 +134,7 @@
 
 <h3>Display (<code>Display</code>)</h3>
 <p>
-  Entra no grupo multicast 225.1.1.NN:88NN (padrão no código: 225.1.1.4:8804) e, a cada mensagem recebida, desenha o tabuleiro em
+  Entra no grupo multicast 225.1.1.NN:88NN (padrão no código para a conta 12: 225.1.1.12:8812) e, a cada mensagem recebida, desenha o tabuleiro em
   texto com o número da jogada, quem jogou e o resultado. Podem rodar vários displays ao mesmo
   tempo, em qualquer máquina.
 </p>
@@ -144,9 +144,9 @@
 
 <h2 id="mensagens">4. Mensagens</h2>
 <p>Pedido de match (parâmetro de <code>getOponent</code>):</p>
-<pre><code>{"ip": "152.92.236.16", "porta": 7004, "protocolo": "tcp"}</code></pre>
+<pre><code>{"ip": "152.92.236.16", "porta": 7012, "protocolo": "tcp"}</code></pre>
 <p>Resposta do match:</p>
-<pre><code>{"ip": "152.92.236.17", "porta": 7004, "inicia": true}</code></pre>
+<pre><code>{"ip": "152.92.236.17", "porta": 7012, "inicia": true}</code></pre>
 <p>Jogada (uma mensagem por linha no socket TCP, e a mesma no multicast):</p>
 <pre><code>{"Numero": 2, "Jogada": 8, "Tabuleiro": [1, 2, 0, 0, 1, 0, 0, 0, 1], "Resultado": "jog"}</code></pre>
 
@@ -170,16 +170,16 @@
 <p>Requer Java 17. Na pasta dos arquivos <code>.java</code>:</p>
 <pre><code>javac *.java</code></pre>
 
-<p>Nas máquinas virtuais (servidor e display na .14, jogadores na .16 e na .17), com os valores da conta 04:</p>
+<p>Nas máquinas virtuais (servidor e display na .14, jogadores na .16 e na .17), com os valores da conta 12:</p>
 <pre><code># 152.92.236.14
-java -Djava.rmi.server.hostname=152.92.236.14 MatchImpl 9804
-java Display 152.92.236.14
+java -Djava.rmi.server.hostname=152.92.236.14 MatchImpl 9812
+java Display 152.92.236.14 225.1.1.12 8812
 
 # 152.92.236.16
-java Jogador 152.92.236.14 9804 152.92.236.16 7004
+java Jogador 152.92.236.14 9812 152.92.236.16 7012
 
 # 152.92.236.17
-java Jogador 152.92.236.14 9804 152.92.236.17 7004</code></pre>
+java Jogador 152.92.236.14 9812 152.92.236.17 7012</code></pre>
 
 <table>
   <tr><th>Programa</th><th>Argumentos</th></tr>
@@ -189,11 +189,11 @@ java Jogador 152.92.236.14 9804 152.92.236.17 7004</code></pre>
 </table>
 <p>
   Todos os IPs e portas são parâmetros. O grupo e a porta do multicast são opcionais: sem eles,
-  o Jogador e o Display usam 225.1.1.4 e 8804. Para usar outro canal, os dois precisam receber os
+  o Jogador e o Display usam 225.1.1.12 e 8812. Para usar outro canal, os dois precisam receber os
   mesmos valores, por exemplo:
 </p>
 <pre><code>java Display 152.92.236.14 225.1.1.50 8850
-java Jogador 152.92.236.14 9804 152.92.236.16 7004 humano 225.1.1.50 8850</code></pre>
+java Jogador 152.92.236.14 9812 152.92.236.16 7012 humano 225.1.1.50 8850</code></pre>
 <p>
   A opção <code>-Djava.rmi.server.hostname</code> faz o RMI informar aos clientes o IP real
   do servidor, e não um endereço local.

@@ -3,7 +3,7 @@
 // 2. TCP: joga UMA partida trocando mensagens JSON com o oponente.
 // 3. Multicast: publica cada jogada feita para os Displays.
 // Uso: java Jogador <ipRegistry> <portaRegistry> <meuIP> <minhaPorta> [humano|auto] [grupoMulticast] [portaMulticast]
-//      (sem grupo e porta, usa 225.1.1.4 e 8804)
+//      (sem grupo e porta, usa 225.1.1.12 e 8812)
  
 // Convencoes do jogo:
 // - Tabuleiro: 0 = vazia, 1 = X (quem inicia), 2 = O (outro jogador).
@@ -30,8 +30,8 @@ import java.util.Arrays;
 public class Jogador {
 
     // grupo e porta do multicast: padrao 225.1.1.NN e 88NN, podem ser trocados pelos argumentos
-    static String grupoMc = "225.1.1.4";
-    static int    portaMc = 8804;
+    static String grupoMc = "225.1.1.12";
+    static int    portaMc = 8812;
 
     static final int TIMEOUT_JOGADA_MS = 5 * 60 * 1000;  // espera maxima pela jogada do oponente
     static final int TIMEOUT_ACEITE_MS = 30 * 1000;      // espera pelo aceite do resultado final

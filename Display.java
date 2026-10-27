@@ -1,6 +1,6 @@
 // Display: onde se entra no grupo multicast e mostra cada jogada recebida.
 // Uso: java Display [IP desta maquina] [grupoMulticast] [portaMulticast]
-//      (sem IP, usa a interface de rede padrao do sistema; sem grupo e porta, usa 225.1.1.4 e 8804)
+//      (sem IP, usa a interface de rede padrao do sistema; sem grupo e porta, usa 225.1.1.12 e 8812)
 // No tabuleiro: 0 = casa vazia, 1 = X (jogador que inicia), 2 = O (outro jogador)
 
 import java.net.DatagramPacket;
@@ -12,8 +12,8 @@ import java.net.NetworkInterface;
 public class Display {
 
     // grupo e porta do multicast: padrao 225.1.1.NN e 88NN, podem ser trocados pelos argumentos
-    static String grupo = "225.1.1.4";
-    static int    porta = 8804;
+    static String grupo = "225.1.1.12";
+    static int    porta = 8812;
 
     public static void main(String[] args) {
         // No Windows o Java usa IPv6 por padrao, o que atrapalha o multicast IPv4.

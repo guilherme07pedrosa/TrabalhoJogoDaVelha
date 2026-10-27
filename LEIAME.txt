@@ -18,7 +18,7 @@ USO
   java Jogador <IP servidor> <portaRegistry> <meu IP> <minha porta> [humano|auto] [grupoMulticast] [portaMulticast]
     humano (padrao): voce digita a casa
     auto           : joga sozinho na primeira casa livre (para testes)
-  Grupo e porta do multicast sao opcionais (padrao 225.1.1.4 e 8804);
+  Grupo e porta do multicast sao opcionais (padrao da conta 12: 225.1.1.12 e 8812);
   Jogador e Display precisam receber os mesmos valores.
 
 CASAS DO TABULEIRO
@@ -59,7 +59,7 @@ CASAS DO TABULEIRO
   .17: java Jogador 152.92.236.14 9812 152.92.236.17 7012 humano 225.1.1.12 8812
 
   Os 4 comandos devem usar os valores da MESMA conta. Sem grupo e porta,
-  Jogador e Display usam 225.1.1.4 e 8804 (os da conta 04).
+  Jogador e Display usam 225.1.1.12 e 8812 (os da conta 12).
 
 PROBLEMAS COMUNS
   Display nao recebe nada: informe o IP da maquina (java Display <meu IP>)
