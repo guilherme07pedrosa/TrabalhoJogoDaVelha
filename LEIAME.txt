@@ -1,5 +1,5 @@
 TRABALHO 2 - Jogo da Velha distribuido (RMI + socket TCP + multicast)
-Requer Java 17. NN = 04 (Registry 9804, multicast 225.1.1.4:8804).
+Requer Java 17. NN = numero da conta (Bianca 04, Guilherme 12).
 
 ARQUIVOS
   MatchIntf.java       interface remota do Servidor de Match
@@ -14,10 +14,12 @@ COMPILAR (na pasta dos .java)
 
 USO
   java -Djava.rmi.server.hostname=<IP desta maquina> MatchImpl <portaRegistry> [timeoutSegundos]
-  java Display [IP desta maquina]
-  java Jogador <IP servidor> <portaRegistry> <meu IP> <minha porta> [humano|auto]
+  java Display [IP desta maquina] [grupoMulticast] [portaMulticast]
+  java Jogador <IP servidor> <portaRegistry> <meu IP> <minha porta> [humano|auto] [grupoMulticast] [portaMulticast]
     humano (padrao): voce digita a casa
     auto           : joga sozinho na primeira casa livre (para testes)
+  Grupo e porta do multicast sao opcionais (padrao 225.1.1.4 e 8804);
+  Jogador e Display precisam receber os mesmos valores.
 
 CASAS DO TABULEIRO
    0 | 1 | 2
@@ -32,10 +34,32 @@ CASAS DO TABULEIRO
   (as aspas no -D sao necessarias so no PowerShell)
 
 === NAS VMs ===
-  .14: java -Djava.rmi.server.hostname=152.92.236.14 MatchImpl 9804
-  .14: java Display 152.92.236.14
-  .16: java Jogador 152.92.236.14 9804 152.92.236.16 7004
-  .17: java Jogador 152.92.236.14 9804 152.92.236.17 7004
+  Arquivos em cada VM:
+    .14: MatchImpl, MatchIntf, TimeoutMatchEx, Json, Display
+    .16 e .17: Jogador, MatchIntf, TimeoutMatchEx, Json
+  Compilar em cada uma: javac *.java
+
+  PORTAS POR CONTA
+                        regra        conta 04     conta 12
+    RMI Registry        98NN         9804         9812
+    grupo multicast     225.1.1.NN   225.1.1.4    225.1.1.12
+    porta multicast     88NN         8804         8812
+    porta do jogador    70NN         7004         7012
+
+  --- RODANDO NA CONTA 04 (Bianca) ---
+  .14: java -Djava.rmi.server.hostname=152.92.236.14 MatchImpl 9804 60
+  .14: java Display 152.92.236.14 225.1.1.4 8804
+  .16: java Jogador 152.92.236.14 9804 152.92.236.16 7004 humano 225.1.1.4 8804
+  .17: java Jogador 152.92.236.14 9804 152.92.236.17 7004 humano 225.1.1.4 8804
+
+  --- RODANDO NA CONTA 12 (Guilherme) ---
+  .14: java -Djava.rmi.server.hostname=152.92.236.14 MatchImpl 9812 60
+  .14: java Display 152.92.236.14 225.1.1.12 8812
+  .16: java Jogador 152.92.236.14 9812 152.92.236.16 7012 humano 225.1.1.12 8812
+  .17: java Jogador 152.92.236.14 9812 152.92.236.17 7012 humano 225.1.1.12 8812
+
+  Os 4 comandos devem usar os valores da MESMA conta. Sem grupo e porta,
+  Jogador e Display usam 225.1.1.4 e 8804 (os da conta 04).
 
 PROBLEMAS COMUNS
   Display nao recebe nada: informe o IP da maquina (java Display <meu IP>)

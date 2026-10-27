@@ -1,5 +1,6 @@
 // Display: onde se entra no grupo multicast e mostra cada jogada recebida.
-// Uso: java Display [IP desta maquina] (quando nao tem IP, usa a interface de rede padrao do sistema)
+// Uso: java Display [IP desta maquina] [grupoMulticast] [portaMulticast]
+//      (sem IP, usa a interface de rede padrao do sistema; sem grupo e porta, usa 225.1.1.4 e 8804)
 // No tabuleiro: 0 = casa vazia, 1 = X (jogador que inicia), 2 = O (outro jogador)
 
 import java.net.DatagramPacket;
@@ -10,15 +11,19 @@ import java.net.NetworkInterface;
 
 public class Display {
 
-    static final String GRUPO = "225.1.1.4";   // 225.1.1.NN
-    static final int    PORTA = 8804;          // 88NN
+    // grupo e porta do multicast: padrao 225.1.1.NN e 88NN, podem ser trocados pelos argumentos
+    static String grupo = "225.1.1.4";
+    static int    porta = 8804;
 
     public static void main(String[] args) {
         // No Windows o Java usa IPv6 por padrao, o que atrapalha o multicast IPv4.
         System.setProperty("java.net.preferIPv4Stack", "true");
 
-        try (MulticastSocket socket = new MulticastSocket(PORTA)) {
-            // Se o IP é informado na chamada, entra no grupo pela interface desse IP. Se não é (rede == null) e sistema usa a interface padrao.
+        if (args.length > 1) grupo = args[1];
+        if (args.length > 2) porta = Integer.parseInt(args[2]);
+
+        try (MulticastSocket socket = new MulticastSocket(porta)) {
+            // Se o IP e informado na chamada, entra no grupo pela interface desse IP. Se nao e (rede == null), o sistema usa a interface padrao.
             NetworkInterface rede = null;
             if (args.length > 0) {
                 rede = NetworkInterface.getByInetAddress(InetAddress.getByName(args[0]));
@@ -27,10 +32,10 @@ public class Display {
                     return;
                 }
             }
-            socket.joinGroup(new InetSocketAddress(InetAddress.getByName(GRUPO), PORTA), rede);
+            socket.joinGroup(new InetSocketAddress(InetAddress.getByName(grupo), porta), rede);
 
             System.out.println("=== DISPLAY - Jogo da Velha ===");
-            System.out.println("Ouvindo " + GRUPO + ":" + PORTA + " pela interface "
+            System.out.println("Ouvindo " + grupo + ":" + porta + " pela interface "
                                + (rede == null ? "padrao do sistema" : rede.getName() + " (" + args[0] + ")"));
             System.out.println("Aguardando jogadas...\n");
 
