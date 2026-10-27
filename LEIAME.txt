@@ -1,0 +1,53 @@
+TRABALHO 2 - Jogo da Velha distribuido (RMI + socket TCP + multicast)
+Requer Java 17. NN = 04 (Registry 9804, multicast 225.1.1.4:8804).
+
+ARQUIVOS
+  MatchIntf.java       interface remota do Servidor de Match
+  MatchImpl.java       Servidor de Match (cria o RMI Registry)
+  TimeoutMatchEx.java  excecao: nenhum oponente no tempo limite
+  Jogador.java         modulo jogador (RMI + TCP + multicast)
+  Display.java         modulo display (multicast)
+  Json.java            montagem e leitura das mensagens JSON
+
+COMPILAR (na pasta dos .java)
+  javac --release 17 *.java
+
+USO
+  java -Djava.rmi.server.hostname=<IP desta maquina> MatchImpl <portaRegistry> [timeoutSegundos]
+  java Display [IP desta maquina]
+  java Jogador <IP servidor> <portaRegistry> <meu IP> <minha porta> [humano|auto]
+    humano (padrao): voce digita a casa
+    auto           : joga sozinho na primeira casa livre (para testes)
+
+CASAS DO TABULEIRO
+   0 | 1 | 2
+   3 | 4 | 5
+   6 | 7 | 8
+
+=== NA SUA MAQUINA (4 terminais) ===
+  java "-Djava.rmi.server.hostname=127.0.0.1" MatchImpl 9804
+  java Display
+  java Jogador 127.0.0.1 9804 127.0.0.1 7001
+  java Jogador 127.0.0.1 9804 127.0.0.1 7002 auto
+  (as aspas no -D sao necessarias so no PowerShell)
+
+=== NAS VMs ===
+  .14: java -Djava.rmi.server.hostname=152.92.236.14 MatchImpl 9804
+  .14: java Display 152.92.236.14
+  .16: java Jogador 152.92.236.14 9804 152.92.236.16 7004
+  .17: java Jogador 152.92.236.14 9804 152.92.236.17 7004
+
+PROBLEMAS COMUNS
+  Display nao recebe nada: informe o IP da maquina (java Display <meu IP>)
+  e use o IP real tambem nos Jogadores.
+
+CONVENCOES
+  - Mensagem: {"Numero", "Jogada", "Tabuleiro": [9 ints], "Resultado"}, uma por linha.
+  - Tabuleiro: 0 = vazia, 1 = X (quem inicia), 2 = O.
+  - Numero comeca em 0 e e incrementado por quem faz a jogada.
+  - Quem recebe inicia=true conecta; o outro aceita a conexao.
+  - Jogada invalida recebida: devolve a mesma mensagem, sem incrementar.
+  - Fim: quem perde responde "der"; empate e respondido com "emp".
+  - Cada jogador publica no multicast as proprias jogadas.
+  - Timeouts: match 60s; jogada 5 min; aceite final 30s.
+    5 rejeicoes seguidas encerram a partida.

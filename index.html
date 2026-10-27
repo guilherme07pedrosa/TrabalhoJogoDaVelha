@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trabalho 2 - Jogo da Velha Distribuído</title>
+<style>
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 20px;
+    line-height: 1.5;
+    color: #222;
+    background: #fff;
+  }
+  h1 { margin-bottom: 4px; }
+  h2 { margin-top: 56px; }
+  .sub { color: #666; margin-top: 0; }
+  pre, code { font-family: Consolas, "Courier New", monospace; }
+  pre {
+    border: 1px solid #ddd;
+    padding: 10px;
+    overflow-x: auto;
+  }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; vertical-align: top; }
+  nav ol { padding-left: 20px; }
+</style>
+</head>
+<body>
+
+<h1>Jogo da Velha Distribuído</h1>
+<p class="sub">Sistemas Distribuídos &middot; Trabalho 2 (RMI, sockets e multicast) &middot; Bianca Mallet e Guilherme Pedrosa</p>
+
+<nav>
+  <ol>
+    <li><a href="#visao">Visão geral</a></li>
+    <li><a href="#modulos">Módulos</a></li>
+    <li><a href="#mensagens">Mensagens</a></li>
+    <li><a href="#execucao">Como compilar e executar</a></li>
+    <li><a href="#falhas">Timeouts e tratamento de falhas</a></li>
+    <li><a href="#limitacoes">Limitações</a></li>
+    <li><a href="#codigo">Código-fonte</a></li>
+  </ol>
+</nav>
+
+<h2 id="visao">1. Visão geral</h2>
+<p>
+  O sistema permite que dois jogadores, em máquinas diferentes, se encontrem por meio de um
+  servidor de match e joguem uma partida de jogo da velha. Cada jogada é transmitida também
+  para quantos displays estiverem ouvindo o canal multicast.
+</p>
+<pre>
+            +----------------------+
+            |    Servidor Match    |   RMI (Registry na porta 9804)
+            +----^------------^----+
+                 |            |
+      getOponent |            | getOponent
+                 |            |
+            +----+----+  +----+----+
+            | Jogador |<>| Jogador |   socket TCP: as jogadas
+            +----+----+  +----+----+
+                 |            |
+                 | multicast  |
+                 v            v
+            +----------------------+
+            | Display  Display ... |   225.1.1.4 : 8804
+            +----------------------+
+</pre>
+<table>
+  <tr><th>Comunicação</th><th>Tecnologia</th><th>Endereço</th></tr>
+  <tr><td>Jogador &rarr; Servidor de Match</td><td>RMI</td><td>IP do servidor, porta 9804</td></tr>
+  <tr><td>Jogador &harr; Jogador</td><td>Socket TCP</td><td>IP e porta informados por cada jogador</td></tr>
+  <tr><td>Jogador &rarr; Displays</td><td>Socket multicast (UDP)</td><td>225.1.1.4, porta 8804</td></tr>
+</table>
+
+<h2 id="modulos">2. Módulos</h2>
+
+<h3>Servidor de Match (<code>MatchImpl</code>)</h3>
+<p>
+  Oferece um único método remoto, <code>getOponent(json)</code>, definido na interface
+  <code>MatchIntf</code>. O próprio programa cria o RMI Registry e registra o objeto com o
+  nome <code>MatchSrv</code>.
+</p>
+<ul>
+  <li>O RMI atende cada chamada numa thread própria. Quando não há oponente, a chamada entra
+      numa fila e a thread fica parada em <code>wait()</code>.</li>
+  <li>Quando chega outro jogador com o mesmo protocolo, o servidor forma o par, preenche a
+      resposta de quem esperava e o acorda com <code>notifyAll()</code>. Assim o
+      <code>return</code> chega para os dois jogadores.</li>
+  <li>Quem já estava esperando recebe <code>inicia: true</code>; o outro recebe
+      <code>inicia: false</code>. Os dois saem da fila.</li>
+  <li>Se ninguém aparecer no tempo limite (padrão de 60 s), o pedido sai da fila e o jogador
+      recebe a exceção remota <code>TimeoutMatchEx</code>.</li>
+</ul>
+
+<h3>Jogador (<code>Jogador</code>)</h3>
+<ol>
+  <li>Abre um <code>ServerSocket</code> na porta informada (antes do match, para o oponente
+      poder conectar logo).</li>
+  <li>Chama <code>getOponent</code> e aguarda o retorno com o IP, a porta e quem inicia.</li>
+  <li>Quem inicia conecta no oponente; o outro aceita a conexão.</li>
+  <li>Os dois trocam jogadas pelo socket TCP até vitória, derrota ou empate. Cada jogada feita
+      também é publicada no multicast.</li>
+  <li>No fim, o socket é fechado.</li>
+</ol>
+<p><strong>Controle de jogadas inválidas.</strong> Ao receber uma jogada, o jogador confere:</p>
+<ul>
+  <li>se o <code>Numero</code> é o esperado;</li>
+  <li>se a casa existe (0 a 8) e está livre;</li>
+  <li>se o <code>Tabuleiro</code> recebido é igual ao tabuleiro local mais a jogada nova.</li>
+</ul>
+<p>
+  Se algo estiver errado, ele devolve a mesma mensagem sem incrementar o número e avisa o
+  usuário. Quem recebe a própria mensagem de volta desfaz a jogada e joga de novo. Depois de
+  5 rejeições seguidas, a partida é encerrada. A mesma validação é feita localmente antes de
+  enviar, então o usuário não consegue escolher uma casa ocupada ou inexistente.
+</p>
+<p>
+  <strong>Fim de jogo.</strong> Ao receber a jogada que dá vitória ao oponente, o jogador
+  declara a derrota e responde com <code>"Resultado": "der"</code>, aceitando o resultado.
+  No empate, responde com <code>"emp"</code>.
+</p>
+<p>
+  Modos: <code>humano</code> (padrão, o usuário digita a casa) e <code>auto</code> (joga na
+  primeira casa livre; usado para testes).
+</p>
+
+<h3>Display (<code>Display</code>)</h3>
+<p>
+  Entra no grupo multicast 225.1.1.4:8804 e, a cada mensagem recebida, desenha o tabuleiro em
+  texto com o número da jogada, quem jogou e o resultado. Podem rodar vários displays ao mesmo
+  tempo, em qualquer máquina.
+</p>
+
+<h3>Apoio (<code>Json</code>)</h3>
+<p>Monta e lê as mensagens JSON, procurando cada campo pelo nome, sem biblioteca externa.</p>
+
+<h2 id="mensagens">3. Mensagens</h2>
+<p>Pedido de match (parâmetro de <code>getOponent</code>):</p>
+<pre><code>{"ip": "152.92.236.16", "porta": 7004, "protocolo": "tcp"}</code></pre>
+<p>Resposta do match:</p>
+<pre><code>{"ip": "152.92.236.17", "porta": 7004, "inicia": true}</code></pre>
+<p>Jogada (uma mensagem por linha no socket TCP, e a mesma no multicast):</p>
+<pre><code>{"Numero": 2, "Jogada": 8, "Tabuleiro": [1, 2, 0, 0, 1, 0, 0, 0, 1], "Resultado": "jog"}</code></pre>
+
+<table>
+  <tr><th>Campo</th><th>Significado</th></tr>
+  <tr><td><code>Numero</code></td><td>Número da jogada, de 0 a 8. Começa em 0 e é incrementado por quem joga.</td></tr>
+  <tr><td><code>Jogada</code></td><td>Casa jogada, de 0 a 8.</td></tr>
+  <tr><td><code>Tabuleiro</code></td><td>9 posições: 0 = vazia, 1 = X (quem inicia), 2 = O.</td></tr>
+  <tr><td><code>Resultado</code></td><td><code>jog</code> (em andamento), <code>vit</code> (vitória), <code>der</code> (derrota aceita), <code>emp</code> (empate).</td></tr>
+</table>
+<p>Numeração das casas:</p>
+<pre>
+ 0 | 1 | 2
+---+---+---
+ 3 | 4 | 5
+---+---+---
+ 6 | 7 | 8
+</pre>
+
+<h2 id="execucao">4. Como compilar e executar</h2>
+<p>Requer Java 17. Na pasta dos arquivos <code>.java</code>:</p>
+<pre><code>javac *.java</code></pre>
+
+<p>Nas máquinas virtuais (servidor e display na .14, jogadores na .16 e na .17):</p>
+<pre><code># 152.92.236.14
+java -Djava.rmi.server.hostname=152.92.236.14 MatchImpl 9804
+java Display 152.92.236.14
+
+# 152.92.236.16
+java Jogador 152.92.236.14 9804 152.92.236.16 7004
+
+# 152.92.236.17
+java Jogador 152.92.236.14 9804 152.92.236.17 7004</code></pre>
+
+<table>
+  <tr><th>Programa</th><th>Argumentos</th></tr>
+  <tr><td><code>MatchImpl</code></td><td><code>&lt;portaRegistry&gt; [timeoutSegundos]</code></td></tr>
+  <tr><td><code>Display</code></td><td><code>[IP desta máquina]</code></td></tr>
+  <tr><td><code>Jogador</code></td><td><code>&lt;IP servidor&gt; &lt;portaRegistry&gt; &lt;meu IP&gt; &lt;minha porta&gt; [humano|auto]</code></td></tr>
+</table>
+<p>
+  A opção <code>-Djava.rmi.server.hostname</code> faz o RMI informar aos clientes o IP real
+  do servidor, e não um endereço local.
+</p>
+
+<h2 id="falhas">5. Timeouts e tratamento de falhas</h2>
+<table>
+  <tr><th>Situação</th><th>Tratamento</th></tr>
+  <tr><td>Nenhum oponente aparece</td><td>Após 60 s, o pedido sai da fila e o jogador recebe <code>TimeoutMatchEx</code>.</td></tr>
+  <tr><td>Oponente não conecta após o match</td><td>Quem aguarda a conexão encerra após 60 s.</td></tr>
+  <tr><td>Oponente demora para jogar</td><td>Após 5 min sem jogada, a partida é encerrada.</td></tr>
+  <tr><td>Oponente desconecta</td><td>O jogador detecta o fim da conexão e encerra.</td></tr>
+  <tr><td>Sem confirmação no fim de jogo</td><td>Após 30 s, o resultado é declarado sem confirmação.</td></tr>
+  <tr><td>Jogada inválida recebida</td><td>A mensagem é devolvida; 5 rejeições seguidas encerram a partida.</td></tr>
+  <tr><td>Falha no multicast</td><td>O jogo continua sem publicar nos displays.</td></tr>
+</table>
+
+<h2 id="limitacoes">6. Limitações</h2>
+<ul>
+  <li>O multicast usa UDP, sem garantia de entrega. Como cada mensagem leva o tabuleiro
+      inteiro, um display que perder uma jogada se corrige na seguinte.</li>
+  <li>Se duas partidas acontecerem ao mesmo tempo, os displays mostram as jogadas das duas
+      misturadas, pois a mensagem não identifica a partida.</li>
+  <li>Cada jogador disputa apenas uma partida e só o protocolo TCP foi implementado.</li>
+</ul>
+
+<h2 id="codigo">7. Código-fonte</h2>
+<ul>
+  <li><code>MatchIntf.java</code>: interface remota do Servidor de Match</li>
+  <li><code>MatchImpl.java</code>: Servidor de Match</li>
+  <li><code>TimeoutMatchEx.java</code>: exceção de timeout do match</li>
+  <li><code>Jogador.java</code>: módulo jogador</li>
+  <li><code>Display.java</code>: módulo display</li>
+  <li><code>Json.java</code>: mensagens JSON</li>
+</ul>
+
+</body>
+</html>
